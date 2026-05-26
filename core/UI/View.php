@@ -6,7 +6,7 @@ namespace Core\UI;
 
 final class View
 {
-    public static function render(string $title, string $content, string $active = 'dashboard'): string
+    public static function render(string $title, string $content, string $active = 'dashboard', ?string $currentUser = null): string
     {
         $navigation = [
             'dashboard' => ['/dashboard', 'Dashboard'],
@@ -21,6 +21,19 @@ final class View
         foreach ($navigation as $key => [$path, $label]) {
             $class = $key === $active ? 'nav-link active' : 'nav-link';
             $navItems .= sprintf('<a class="%s" href="%s">%s</a>', $class, $path, $label);
+        }
+
+        $authSection = '';
+        if ($currentUser !== null) {
+            $safeUser = htmlspecialchars($currentUser, ENT_QUOTES, 'UTF-8');
+            $authSection = <<<HTML
+<div class="auth-box">
+  <span class="muted">Signed in as {$safeUser}</span>
+  <form method="POST" action="/logout">
+    <button type="submit" class="btn btn-secondary">Logout</button>
+  </form>
+</div>
+HTML;
         }
 
         return <<<HTML
@@ -50,6 +63,9 @@ final class View
     th, td { padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
     th { background: #f9fafb; }
     .muted { color: #6b7280; }
+    .auth-box { display: grid; gap: 10px; margin-top: 20px; }
+    .btn { border: 0; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+    .btn-secondary { background: #374151; color: #f3f4f6; }
     @media (max-width: 900px) { .app { grid-template-columns: 1fr; } .sidebar { position: sticky; top: 0; z-index: 1; } }
   </style>
 </head>
@@ -58,6 +74,7 @@ final class View
     <aside class="sidebar">
       <h1 class="brand">NovaCore Admin</h1>
       <nav class="nav">{$navItems}</nav>
+      {$authSection}
     </aside>
     <main class="main">
       {$content}
