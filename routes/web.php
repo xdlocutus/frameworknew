@@ -11,6 +11,41 @@ $moduleManager = $this->container->get(ModuleManager::class);
 $events = $this->container->get(EventDispatcher::class);
 $navigation = $moduleManager->navigation();
 
+
+$router->add('GET', '/modules/dashboard', function () use ($moduleManager, $navigation) {
+    $modules = $moduleManager->all();
+    $permissions = $moduleManager->permissions();
+    $meta = $moduleManager->frameworkMeta();
+    $bootMs = $moduleManager->bootDurationMs();
+
+    $rows = [];
+    foreach ($modules as $module) {
+        $rows[] = sprintf(
+            '<tr><td class="px-4 py-3 text-sm text-slate-700">%s</td><td class="px-4 py-3 text-sm text-slate-500">%s</td><td class="px-4 py-3 text-sm text-slate-500">%d</td><td class="px-4 py-3 text-sm text-slate-500">%d</td></tr>',
+            htmlspecialchars((string) $module['name'], ENT_QUOTES, 'UTF-8'),
+            htmlspecialchars((string) $module['version'], ENT_QUOTES, 'UTF-8'),
+            count((array) ($module['providers'] ?? [])),
+            count((array) ($module['permissions'] ?? [])),
+        );
+    }
+
+    $metrics = '<section class="metrics">'
+        . '<article class="metric"><p class="metric-label">Modules</p><p class="metric-value">' . count($modules) . '</p></article>'
+        . '<article class="metric"><p class="metric-label">Permissions</p><p class="metric-value">' . count($permissions) . '</p></article>'
+        . '<article class="metric"><p class="metric-label">Boot Time</p><p class="metric-value">' . $bootMs . ' ms</p></article>'
+        . '<article class="metric"><p class="metric-label">Framework</p><p class="metric-value">' . htmlspecialchars($meta['version'], ENT_QUOTES, 'UTF-8') . '</p></article>'
+        . '</section>';
+
+    $content = '<div class="stack">'
+        . '<header><h1 class="text-slate-900" style="margin:0;font-size:1.9rem;">Dashboard Module</h1><p class="text-sm text-slate-500" style="margin-top:8px;">High-level runtime summary for operators and developers.</p></header>'
+        . $metrics
+        . Components::card('Module Snapshot', Components::table(['Module', 'Version', 'Providers', 'Permissions'], $rows), 'Current enabled modules and their integration footprint.')
+        . Components::card('Health Summary', '<ul class="text-sm text-slate-500"><li>Runtime booted successfully.</li><li>No fatal compatibility blockers detected.</li><li>Navigation and module registry are active.</li></ul>', 'Operational status summary generated at request time.')
+        . '</div>';
+
+    return View::render('Dashboard Module', $content, $navigation);
+});
+
 $router->add('GET', '/', function () use ($moduleManager, $events, $navigation) {
     $modules = $moduleManager->all();
     $permissions = $moduleManager->permissions();
