@@ -7,6 +7,7 @@ namespace Core\Bootstrap;
 use Core\Config\Config;
 use Core\Container\Container;
 use Core\Console\Kernel as ConsoleKernel;
+use Core\Events\EventDispatcher;
 use Core\Http\Kernel as HttpKernel;
 use Core\Modules\ModuleManager;
 
@@ -26,9 +27,11 @@ final class Application
         $container->set(self::class, $app);
         $container->set(Container::class, $container);
         $container->set(Config::class, $config);
+        $events = new EventDispatcher();
+        $container->set(EventDispatcher::class, $events);
         (new Environment($basePath))->load();
 
-        $moduleManager = new ModuleManager($basePath . '/modules', $container);
+        $moduleManager = new ModuleManager($basePath . '/modules', $container, $events, '1.0.0');
         $moduleManager->boot();
         $container->set(ModuleManager::class, $moduleManager);
 
