@@ -87,6 +87,7 @@ final class ModuleManager
     public function navigation(): array
     {
         return [
+            ['label' => 'Dashboard', 'path' => '/modules/dashboard'],
             ['label' => 'Kernel', 'path' => '/'],
             ['label' => 'Modules', 'path' => '/#module-runtime'],
             ['label' => 'Services', 'path' => '/#service-providers'],
