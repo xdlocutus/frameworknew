@@ -16,6 +16,16 @@ final class ModuleManager
     /** @var array<int, array{module:string, depends_on:string}> */
     private array $compatibilityIssues = [];
 
+    /** @var array<int,string> */
+    private array $bootSequence = [];
+
+    /** @var array<int,array{module:string,provider:string,order:int}> */
+    private array $providerBootOrder = [];
+
+    private float $bootStartedAt = 0.0;
+
+    private float $bootCompletedAt = 0.0;
+
     public function __construct(
         private readonly string $path,
         private readonly Container $container,
@@ -25,6 +35,9 @@ final class ModuleManager
 
     public function boot(): void
     {
+        $this->bootStartedAt = microtime(true);
+        $this->bootSequence[] = 'Scanning module manifests';
+
         foreach (glob($this->path . '/*/module.php') ?: [] as $file) {
             $manifest = require $file;
             if (!is_array($manifest)) {
@@ -44,6 +57,7 @@ final class ModuleManager
         }
 
         usort($this->modules, static fn (array $a, array $b): int => (int) ($a['priority'] ?? 100) <=> (int) ($b['priority'] ?? 100));
+        $this->bootSequence[] = sprintf('Resolved %d compatible modules', count($this->modules));
 
         foreach ($this->modules as $module) {
             $this->registerProviders($module);
@@ -56,9 +70,11 @@ final class ModuleManager
             }
 
             $this->bootProviders($module);
-
             $this->events->dispatch('module.booted', ['module' => $module['name']]);
+            $this->bootSequence[] = sprintf('%s module booted', $module['name']);
         }
+
+        $this->bootCompletedAt = microtime(true);
     }
 
     /** @return array<int, array<string,mixed>> */
@@ -70,19 +86,17 @@ final class ModuleManager
     /** @return array<int, array{label:string,path:string}> */
     public function navigation(): array
     {
-        $navigation = [];
-        foreach ($this->modules as $module) {
-            if (!isset($module['navigation']) || !is_array($module['navigation'])) {
-                continue;
-            }
-            foreach ($module['navigation'] as $item) {
-                if (is_array($item) && isset($item['label'], $item['path'])) {
-                    $navigation[] = ['label' => (string) $item['label'], 'path' => (string) $item['path']];
-                }
-            }
-        }
-
-        return $navigation;
+        return [
+            ['label' => 'Kernel', 'path' => '/'],
+            ['label' => 'Modules', 'path' => '/#module-runtime'],
+            ['label' => 'Services', 'path' => '/#service-providers'],
+            ['label' => 'Events', 'path' => '/#event-system'],
+            ['label' => 'Permissions', 'path' => '/#permissions-engine'],
+            ['label' => 'Routes', 'path' => '/#runtime-routes'],
+            ['label' => 'Config', 'path' => '/#system-config'],
+            ['label' => 'Logs', 'path' => '/#runtime-logs'],
+            ['label' => 'Tools', 'path' => '/#developer-tools'],
+        ];
     }
 
     /** @return array<int, string> */
@@ -110,6 +124,27 @@ final class ModuleManager
     public function frameworkMeta(): array
     {
         return ['name' => 'NovaCore', 'version' => $this->frameworkVersion, 'modules' => count($this->modules)];
+    }
+
+    /** @return array<int,string> */
+    public function bootSequence(): array
+    {
+        return $this->bootSequence;
+    }
+
+    /** @return array<int,array{module:string,provider:string,order:int}> */
+    public function providerBootOrder(): array
+    {
+        return $this->providerBootOrder;
+    }
+
+    public function bootDurationMs(): float
+    {
+        if ($this->bootStartedAt === 0.0 || $this->bootCompletedAt === 0.0) {
+            return 0.0;
+        }
+
+        return round(($this->bootCompletedAt - $this->bootStartedAt) * 1000, 2);
     }
 
     /** @return array<string,mixed> */
@@ -179,6 +214,11 @@ final class ModuleManager
             $provider = new $providerClass();
             if ($provider instanceof ModuleProviderInterface) {
                 $provider->boot($context);
+                $this->providerBootOrder[] = [
+                    'module' => (string) $module['name'],
+                    'provider' => $providerClass,
+                    'order' => count($this->providerBootOrder) + 1,
+                ];
             }
         }
     }
