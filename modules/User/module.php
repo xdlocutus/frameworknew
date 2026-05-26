@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 return [
-    'name' => 'Settings',
+    'name' => 'User',
     'enabled' => true,
     'navigation' => [
-        ['label' => 'Settings', 'path' => '/modules/settings'],
+        ['label' => 'Users', 'path' => '/modules/user'],
     ],
-    'permissions' => ['settings.manage'],
+    'permissions' => ['user.view', 'user.manage'],
     'boot' => static function (): void {},
 ];
