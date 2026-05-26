@@ -27,7 +27,11 @@ final class Application
         $container->set(Container::class, $container);
         $container->set(Config::class, $config);
         (new Environment($basePath))->load();
-        (new ModuleManager($basePath . '/modules', $container))->boot();
+
+        $moduleManager = new ModuleManager($basePath . '/modules', $container);
+        $moduleManager->boot();
+        $container->set(ModuleManager::class, $moduleManager);
+
         return $app;
     }
 

@@ -39,9 +39,10 @@ final class MakeModuleCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $name = (string) $input->getArgument('name');
+        $slug = strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $name) ?? $name);
         $base = $this->basePath . '/modules/' . $name;
 
-        foreach (['Controllers','Models','Views','Routes','Services','Middleware','Events','Database/Migrations','Database/Seeders','Config'] as $dir) {
+        foreach (['Controllers','Models','Views','Routes','Routes/Api','Services','Middleware','Permissions','Database/Migrations','Database/Seeders','Config','Assets'] as $dir) {
             if (!is_dir($base . '/' . $dir)) {
                 mkdir($base . '/' . $dir, 0775, true);
             }
@@ -49,7 +50,24 @@ final class MakeModuleCommand extends Command
 
         $moduleFile = $base . '/module.php';
         if (!file_exists($moduleFile)) {
-            file_put_contents($moduleFile, "<?php\n\nreturn ['name' => '$name', 'enabled' => true];\n");
+            $content = <<<PHPFILE
+<?php
+
+declare(strict_types=1);
+
+return [
+    'name' => '{$name}',
+    'enabled' => true,
+    'navigation' => [
+        ['label' => '{$name}', 'path' => '/modules/{$slug}'],
+    ],
+    'permissions' => [
+        '{$slug}.view',
+    ],
+    'boot' => static function (): void {},
+];
+PHPFILE;
+            file_put_contents($moduleFile, $content . "\n");
         }
 
         $output->writeln("Module {$name} created at {$base}");
